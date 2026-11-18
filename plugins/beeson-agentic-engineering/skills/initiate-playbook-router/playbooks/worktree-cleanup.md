@@ -1,0 +1,12 @@
+### Worktree and simulator cleanup
+
+**You own the deletion list. The audit is advice, the user's active work is the ground truth.** This is the one playbook that deletes user state with no code review to catch a slip, so the gates below are the review.
+
+1. Snapshot and audit. Record `df -h /`, then audit from `git worktree list`, never hand-typed paths, because a hand-typed path misses worktrees that live under tool-managed directories. Classify each worktree by size, age, merge state against the base ref PRs actually target, uncommitted work, PR state, and the newest chat or session that touched it, then suggest a bucket. Encode the audit as a script if you run it more than once, instead of re-deriving it by hand. The transcript scan is slow, so background it.
+2. The bucket is advice, not permission. The pinned and active chats are the real artifact. Get that set from the user or the host's session list and cross-check every candidate. A worktree the audit marks `safe` may belong to a pinned chat. The pinned set wins.
+3. Verify usage before deleting. For every uncertain row, fan subagents out to read the sessions and report whether the work is pinned or ongoing and which worktrees it touches. A pinned chat spawns repro and experiment trees into sibling worktrees via background subagents, and those are in use even when their names never appear in a list.
+4. Pause on irreversible loss. Uncommitted tracked edits are shown as a diff and get a decision first, because removing a clean worktree is recoverable from its branch but uncommitted work is gone. Untracked throwaway files are safe to drop, but name them. Clean, merged, and not-in-use proceeds. Dirty or in-use pauses.
+5. Prune the confirmed set. Per path, `git worktree remove --force <path>`. If the dir survives on ignored build artifacts, remove it, then `git worktree prune`. Branch refs survive, so no commits are lost. Confirm with `df -h /` and re-list.
+6. Simulators and other reclaimers. Simulators are usually the next-biggest win: delete test-device clones and unavailable simulators, and remove old runtimes, using the platform's simulator tooling. More when needed: IDE derived-data and device-support caches, editor state backups and workspace snapshots for folders no longer opened, package caches (pnpm, uv, brew, yarn). Clear only caches the user has not said to keep.
+
+**Reply:** `df -h /` before and after with space reclaimed, the worktrees pruned, and a one-line reason for each held back (in-use by which session, or uncommitted work).

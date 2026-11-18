@@ -1,0 +1,550 @@
+{
+  "version": "1.0",
+  "habits": {
+    "H1": "Copies the nearest working pattern.",
+    "H2": "Edits the file already open.",
+    "H3": "Takes the shortest path that compiles.",
+    "H4": "Avoids deleting code whose callers are hidden.",
+    "H5": "Follows the prompt even when it violates a system invariant."
+  },
+  "scale": {
+    "0": {
+      "name": "Absent",
+      "meaning": "Nothing addresses it, and the codebase breaks it in several places."
+    },
+    "1": {
+      "name": "Prose",
+      "meaning": "It's documented or mostly followed by convention, but nothing fails when it's broken."
+    },
+    "2": {
+      "name": "Soft tooling",
+      "meaning": "A tool or check exists, but it warns, runs only locally, is optional or soft-fails in CI, or covers only part of the relevant code."
+    },
+    "3": {
+      "name": "Hard gate",
+      "meaning": "Architecture or types make the mistake impossible, or a check fails CI as a blocking step across the relevant code. The item's hard gate text says what that means for the item."
+    },
+    "4": {
+      "name": "Proven gate",
+      "meaning": "Meets 3, and the repo proves the gate bites: a canary or rule test drawn from a real past mistake runs in CI. Legacy violations are ratcheted, and exceptions carry a reason, an expiry, and an approver."
+    }
+  },
+  "levels": [
+    {
+      "level": 0,
+      "name": "Prose and review",
+      "description": "Standards live in docs, agent instruction files, and human review. Nothing fails when an agent ignores them, so quality depends on reviewers catching the same mistakes on every PR.",
+      "gates": []
+    },
+    {
+      "level": 1,
+      "name": "Soft tooling",
+      "description": "Lint and type tooling exist, but they warn, run optionally, or stop at defaults. Nothing enforces boundaries mechanically, so agents can still merge the shortest path that compiles.",
+      "gates": [
+        {"any_of": ["T1", "S1"], "min": 2}
+      ]
+    },
+    {
+      "level": 2,
+      "name": "Hard boundaries",
+      "description": "Strict type checks, a repo-specific ban list, and dependency-direction rules fail CI as required checks on the default branch. The shortest path starts to be the correct one, because the wrong imports and patterns can't merge.",
+      "gates": [
+        {"item": "T1", "min": 3},
+        {"item": "S1", "min": 3},
+        {"item": "A4", "min": 3},
+        {"item": "G2", "min": 3}
+      ]
+    },
+    {
+      "level": 3,
+      "name": "Governed gates",
+      "description": "Every rule has a mechanical enforcer or is a named judgment call. Gates run from one command locally and in CI, are proven against real past mistakes, ratchet legacy violations down, and allow only exceptions that carry a reason, an expiry, and an approver.",
+      "gates": [
+        {"item": "G1", "min": 3},
+        {"item": "G3", "min": 3},
+        {"item": "G4", "min": 3},
+        {"item": "G5", "min": 3},
+        {"item": "G6", "min": 3}
+      ]
+    },
+    {
+      "level": 4,
+      "name": "Self-correcting",
+      "description": "Escapes are mined on a schedule from review comments, AI review findings, reverts, and agent transcripts, then promoted into gates. Agent instruction prose shrinks as gates replace it. Human review stops catching repeat mistakes because repeats can't merge.",
+      "gates": [
+        {"item": "F1", "min": 3},
+        {"item": "F2", "min": 3}
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": "A",
+      "name": "Architecture",
+      "weight": 30,
+      "why": "The strongest layer in Lauren Tan's hierarchy. Structure removes the wrong option before an agent sees it."
+    },
+    {
+      "id": "S",
+      "name": "Static analysis and CI",
+      "weight": 20,
+      "why": "Catches what still compiles, and turns CI red without relying on model memory."
+    },
+    {
+      "id": "G",
+      "name": "Gate system",
+      "weight": 20,
+      "why": "Decides whether the other gates are actually hard: required, runnable locally, proven, ratcheted, and governed."
+    },
+    {
+      "id": "T",
+      "name": "Types",
+      "weight": 15,
+      "why": "Makes bad states unrepresentable. A strict compiler is a gate you get for free."
+    },
+    {
+      "id": "B",
+      "name": "Behavior tests",
+      "weight": 10,
+      "why": "Third in the /correct order. Catches what types and lint can't, as long as the tests check behavior."
+    },
+    {
+      "id": "F",
+      "name": "Feedback loop and soft layers",
+      "weight": 5,
+      "why": "Soft layers in her hierarchy. They matter mainly for promoting escapes into gates, which the Level 4 gate already requires."
+    }
+  ],
+  "items": [
+    {
+      "id": "A1",
+      "category": "A",
+      "name": "Feature colocation",
+      "defeats": "H2",
+      "source": "Dune spec",
+      "look_for": "Is product code grouped by feature (features/<x>/, modules/<x>/, domains/<x>/) or by technical layer (components/, services/, utils/)? Use the directory spread per commit from discover.py: a median above 3 suggests a typical change touches many places. Check whether cross-feature imports go through a public entry point.",
+      "hard_gate": "Features live in owned directories, and a boundary check fails CI when one feature imports another feature's internals.",
+      "na_when": "The repo is a single-purpose library or CLI with one feature."
+    },
+    {
+      "id": "A2",
+      "category": "A",
+      "name": "Discovery by convention, not central registries",
+      "defeats": "H2",
+      "source": "Dune spec",
+      "look_for": "Shared files most feature PRs must edit: route tables, giant switch statements, barrel index files, DI containers, menu or command registries. Hotspots from discover.py that aren't lockfiles are the usual suspects.",
+      "hard_gate": "New features register through reserved filenames or glob-based loaders, and CI or CODEOWNERS blocks feature PRs from editing the shared roots that remain.",
+      "na_when": "The codebase has no repeating unit (feature, route, command, plugin) that gets added over time."
+    },
+    {
+      "id": "A3",
+      "category": "A",
+      "name": "Unreachable internals",
+      "defeats": "H3",
+      "source": "pstack design red flags",
+      "look_for": "package.json exports maps, Go internal/ packages, Rust pub(crate) and private modules, Java module-info or package-private classes, Bazel visibility, Python import-linter contracts. Grep for deep imports into another package's src/ or internal paths.",
+      "hard_gate": "Importing another module's internals fails the build or CI.",
+      "na_when": "The repo is one module with no internal package structure."
+    },
+    {
+      "id": "A4",
+      "category": "A",
+      "name": "One-way dependency direction between layers and processes",
+      "defeats": "H3, H5",
+      "source": "Dune spec",
+      "look_for": "dependency-cruiser, eslint-plugin-boundaries, import/no-restricted-paths, Nx enforce-module-boundaries, Python import-linter, ArchUnit, TypeScript project references, Bazel deps. Name the layers that matter here (client/server, main/renderer, domain/infrastructure, framework/product), then check which directions are forbidden mechanically.",
+      "hard_gate": "A dependency-graph check fails CI on any forbidden edge between the repo's layers or processes.",
+      "na_when": "The codebase genuinely has one layer. Justify it; this is rare."
+    },
+    {
+      "id": "A5",
+      "category": "A",
+      "name": "One writer per durable value",
+      "defeats": "H3",
+      "source": "Dune spec",
+      "look_for": "For the main tables, stores, caches, storage keys, and global state, count how many modules write each one. Direct ORM or database client writes outside a repository or service layer, store setters called from many features, and storage writes scattered across components all count against it.",
+      "hard_gate": "Write access to each durable value is importable only from its owner module, so a second writer fails CI.",
+      "na_when": "The code holds no persisted or shared state."
+    },
+    {
+      "id": "A6",
+      "category": "A",
+      "name": "One supported way per task",
+      "defeats": "H1, H4",
+      "source": "Dune spec, pstack design red flags",
+      "look_for": "Two libraries or helpers for the same job (HTTP clients, date libraries, logging, state management), legacy/old/v1 directories, @deprecated symbols that recent commits still call, and dead code or unused exports (knip, ts-prune, vulture, deadcode).",
+      "hard_gate": "Old ways are deleted or banned for new callers in CI, and dead-code detection fails CI.",
+      "na_when": null
+    },
+    {
+      "id": "A7",
+      "category": "A",
+      "name": "One source of truth for lists and shapes",
+      "defeats": "H2",
+      "source": "pstack design red flags, type-system-discipline",
+      "look_for": "Codegen from OpenAPI, protobuf, GraphQL, database schema, or design tokens. Hand-written types that mirror a schema, enums duplicated between client and server, and comments like 'keep in sync with'.",
+      "hard_gate": "Derived artifacts are generated, CI regenerates them and fails on a diff, and lists that can't be derived have a consistency check.",
+      "na_when": "The repo has no schemas or parallel lists."
+    },
+    {
+      "id": "A8",
+      "category": "A",
+      "name": "Validation at boundaries only",
+      "defeats": "H1",
+      "source": "boundary-discipline",
+      "look_for": "Parse libraries (zod, valibot, pydantic, serde, io-ts) at IO edges, versus raw JSON.parse, fetch, process.env, os.environ, and request bodies used deep in business logic. Repeated defensive checks inside internal code count against it.",
+      "hard_gate": "Raw IO, environment, and untyped payload access is banned outside designated boundary modules by a lint that fails CI.",
+      "na_when": null
+    },
+    {
+      "id": "A9",
+      "category": "A",
+      "name": "Deep modules with small public surfaces",
+      "defeats": "H1",
+      "source": "pstack design red flags",
+      "look_for": "Pass-through wrappers, public entry points that re-export ORM, transport, or wire types, callers that chain several calls to finish one operation, and public API reports (api-extractor or similar). This is mostly a design judgment, so most repos land at 1 or 2.",
+      "hard_gate": "The public API surface of shared modules is tracked so unreviewed surface changes fail CI, and re-exporting transport or storage types from public entry points is banned.",
+      "na_when": "The repo exposes no shared modules."
+    },
+    {
+      "id": "A10",
+      "category": "A",
+      "name": "No shared mutable state between concurrent actors",
+      "defeats": "H5",
+      "source": "separate-before-serializing-shared-state",
+      "look_for": "State files, cache keys, rows, or globals written by more than one job, worker, service, or process. Locks added as a reflex. Parallel agents or CI jobs sharing branches, worktrees, or state files.",
+      "hard_gate": "Each concurrent actor owns its write target structurally, or a single-writer actor, lock, or compare-and-swap enforces serialization in code.",
+      "na_when": "Nothing runs concurrently."
+    },
+    {
+      "id": "A11",
+      "category": "A",
+      "name": "No god files",
+      "defeats": "H2",
+      "source": "Grok Bot history from the talk",
+      "look_for": "Largest files and the count over 1,000 lines from discover.py. max-lines and max-lines-per-function lint settings, or file-length checks in CI.",
+      "hard_gate": "A file and function length limit fails CI, and oversized legacy files are ratcheted so they can't grow.",
+      "na_when": null
+    },
+    {
+      "id": "T1",
+      "category": "T",
+      "name": "Strict type checking without escape hatches",
+      "defeats": "H3",
+      "source": "type-system-discipline, talk (strict compilers)",
+      "look_for": "tsconfig strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes; mypy or pyright strict; warnings as errors; clippy deny levels; forbid(unsafe_code). Escape-hatch counts from discover.py (any, double casts, ts-ignore, type: ignore, unsafe). A dynamically typed codebase with no type checker scores 0.",
+      "hard_gate": "Type checking runs in strict mode as a blocking CI step, and new escape hatches fail lint or CI.",
+      "na_when": null
+    },
+    {
+      "id": "T2",
+      "category": "T",
+      "name": "Branded semantic primitives",
+      "defeats": "H3",
+      "source": "type-system-discipline",
+      "look_for": "Branded or newtype IDs and units (Brand<>, NewType, Go named types, Rust newtypes, value classes). Functions that take several bare string or number IDs count against it.",
+      "hard_gate": "IDs and units are distinct types built only through validating constructors, so mixing them fails to compile.",
+      "na_when": "The domain has no semantic primitives that could be confused."
+    },
+    {
+      "id": "T3",
+      "category": "T",
+      "name": "Illegal states are unrepresentable",
+      "defeats": "H3",
+      "source": "type-system-discipline, pstack architect scrap signals",
+      "look_for": "Discriminated unions or sum types for state, and exhaustiveness checks (assertNever, switch-exhaustiveness-check, Rust match, assert_never). Bags of optional fields or booleans that encode state, and optional fields that are always set in practice, count against it.",
+      "hard_gate": "State is modeled as discriminated unions or enums, and non-exhaustive handling fails the compiler or a lint in CI.",
+      "na_when": null
+    },
+    {
+      "id": "T4",
+      "category": "T",
+      "name": "One typed contract per process or service boundary",
+      "defeats": "H3",
+      "source": "Dune spec (Host)",
+      "look_for": "IPC, RPC, HTTP, and queue messages typed from one definition that both sides use (tRPC, protobuf, OpenAPI codegen, a shared schema package), versus hand-written client types.",
+      "hard_gate": "Both sides of every boundary derive their types from one contract, and a breaking contract change fails CI.",
+      "na_when": "A single process with no external API or messaging."
+    },
+    {
+      "id": "S1",
+      "category": "S",
+      "name": "Repo-specific ban list",
+      "defeats": "H1, H3",
+      "source": "Dune spec, /correct",
+      "look_for": "Custom lint rules, no-restricted-syntax, no-restricted-imports, semgrep or ast-grep rules, ruff banned-api, golangci forbidigo, ArchUnit rules. Check whether they trace to this repo's own recurring mistakes. Default presets alone cap this item at 2.",
+      "hard_gate": "A curated list of patterns banned because of this repo's recurring mistakes fails CI.",
+      "na_when": null
+    },
+    {
+      "id": "S2",
+      "category": "S",
+      "name": "Error messages name the fix",
+      "defeats": "H3",
+      "source": "/correct",
+      "look_for": "Read the message text of custom lint rules, restricted-import entries, semgrep rules, and CI scripts. 'Don't import db here; use billing/repo.ts#saveInvoice' passes. 'Restricted import' doesn't.",
+      "anchors": {
+        "0": "No custom gates exist, so agents only ever see generic tool errors.",
+        "1": "Custom gates exist, but their errors only say what's wrong.",
+        "2": "Some custom gate errors name the file, function, or type to use instead.",
+        "3": "Every custom gate error names the file, function, or type to use instead.",
+        "4": "Meets 3, and each error also points to its rule table entry or the canary showing the past mistake."
+      },
+      "na_when": null
+    },
+    {
+      "id": "S3",
+      "category": "S",
+      "name": "Diff-scoped checks for new violations",
+      "defeats": "H1",
+      "source": "/correct",
+      "look_for": "Danger.js, reviewdog, scripts over git diff base...HEAD, golangci --new-from-rev, semgrep --baseline-commit. Look for rules the team wants but can't yet enforce repo-wide.",
+      "hard_gate": "CI checks the PR diff and blocks newly added violations of rules that can't yet be enforced repo-wide.",
+      "na_when": "Every rule the team wants is already enforced repo-wide."
+    },
+    {
+      "id": "S4",
+      "category": "S",
+      "name": "Comment policy",
+      "defeats": "H5",
+      "source": "Dune spec, /no-comments",
+      "look_for": "A lint or diff check that bans or allowlists comments. Added comment lines and history-narration samples from discover.py ('per review', 'as discussed', 'do not remove'). Constraint comments that should be checks.",
+      "hard_gate": "CI fails when a diff adds comments outside a defined allowlist, such as license headers, public API docs, and links explaining external constraints.",
+      "na_when": null
+    },
+    {
+      "id": "S5",
+      "category": "S",
+      "name": "Structural guards for performance",
+      "defeats": "H3",
+      "source": "Dune spec (renderer import isolation)",
+      "look_for": "Import rules that keep heavy dependencies out of hot paths (renderer, client bundle, edge runtime, request handlers), bundle-size budgets (size-limit, bundlewatch), Lighthouse CI, and benchmark gates. Start from the repo's known performance regressions.",
+      "hard_gate": "The structural cause of the repo's known performance regressions is blocked in the import graph, or a budget fails CI.",
+      "na_when": "No latency, frame, or size budget matters for this product. Justify it."
+    },
+    {
+      "id": "S6",
+      "category": "S",
+      "name": "Credential and blast-radius limits",
+      "defeats": "H5",
+      "source": "talk (brownfield credential restrictions)",
+      "proof": "runtime",
+      "look_for": "Secret scanning (GitHub secret scanning, gitleaks, trufflehog), scope of CI and agent tokens, production credentials reachable from dev or agent environments, protected deploy environments, and committed .env files.",
+      "hard_gate": "Secret scanning blocks merges, agent and CI credentials are least-privilege with no production write access, and deploys require protected environments.",
+      "na_when": null
+    },
+    {
+      "id": "S7",
+      "category": "S",
+      "name": "Dependency allowlist",
+      "defeats": "H3",
+      "source": "added",
+      "look_for": "Dependency review actions, allowlist scripts, CODEOWNERS on package manifests and lockfiles, and Renovate or Dependabot policy.",
+      "hard_gate": "Adding a new third-party dependency fails CI or needs a required owner approval on the manifest.",
+      "na_when": null
+    },
+    {
+      "id": "S8",
+      "category": "S",
+      "name": "Automatic formatting and autofix",
+      "defeats": "H3",
+      "source": "added",
+      "look_for": "A formatter and autofix in pre-commit (husky, lefthook, pre-commit, lint-staged), and a format check in CI.",
+      "hard_gate": "Formatting and autofixable lint run automatically before commit, and a format check fails CI.",
+      "na_when": null
+    },
+    {
+      "id": "B1",
+      "category": "B",
+      "name": "Tests check behavior, not implementation",
+      "defeats": "H3",
+      "source": "/correct, test-behavior-not-implementation",
+      "look_for": "Sample about 10 tests across the repo. Would each fail if the behavior broke? Would it break if only internals changed? Look for Stryker, mutmut, cargo-mutants, or PIT.",
+      "anchors": {
+        "0": "No tests, or most sampled tests are hollow: heavy mocking, assertions on internals, or tests that would pass if the code returned nothing.",
+        "1": "Sampled tests mostly assert observable behavior, by convention only.",
+        "2": "Test quality is measured (mutation testing or assertion checks), but only as a report.",
+        "3": "Mutation testing or an equivalent test-quality check on changed code fails CI.",
+        "4": "Meets 3, and the threshold is ratcheted up, with hollow tests rewritten or deleted rather than suppressed."
+      },
+      "na_when": null
+    },
+    {
+      "id": "B2",
+      "category": "B",
+      "name": "Tests are a required, deterministic gate",
+      "defeats": "H5",
+      "source": "added",
+      "look_for": "CI test jobs and whether they're required, retry settings (jest retryTimes, pytest-rerunfailures, Playwright retries), quarantine lists, and 'flaky' in recent commit subjects or review comments. Agents learn to rerun and dismiss failures when a suite is flaky.",
+      "anchors": {
+        "0": "No automated tests run in CI.",
+        "1": "Tests run in CI but don't block merges, or the suite is known to be flaky and reruns are routine.",
+        "2": "Tests block merges, but retries mask failures or quarantined tests have no owner or expiry.",
+        "3": "Tests block merges, run deterministically, and flaky tests are quarantined with an owner and an expiry.",
+        "4": "Meets 3, flake rate is tracked, and a newly flaky test fails the gate."
+      },
+      "na_when": null
+    },
+    {
+      "id": "G1",
+      "category": "G",
+      "name": "One gate command, same locally and in CI",
+      "defeats": "H3",
+      "source": "/correct",
+      "look_for": "package.json scripts, Makefile or justfile targets, and the commands CI actually runs (the ci section of discover.py). Compare the two lists.",
+      "anchors": {
+        "0": "No single command. CI and local development run different checks.",
+        "1": "A documented sequence of commands developers are expected to run.",
+        "2": "One command exists (make check, npm run verify), but CI runs different or extra steps.",
+        "3": "One command runs every gate, CI calls that same command, and agent instructions say to run it before pushing.",
+        "4": "Meets 3, and a fast mode for changed files makes the command practical inside an agent's edit loop."
+      },
+      "na_when": null
+    },
+    {
+      "id": "G2",
+      "category": "G",
+      "name": "Gates are required checks on the default branch",
+      "defeats": "H3",
+      "source": "talk (hard gates make CI red)",
+      "proof": "runtime",
+      "look_for": "The github section of discover.py (rulesets and branch protection) and its list of soft-fail CI patterns. If the token can't read protection settings, ask the operator and record the answer as attested evidence.",
+      "anchors": {
+        "0": "The default branch has no protection.",
+        "1": "Protection exists, but no status checks are required, or bypass is routine.",
+        "2": "Some gates are required. Others run without blocking or use soft-fail patterns (continue-on-error, || true, allow_failure).",
+        "3": "Every gate job is a required status check on the default branch, with no soft-fail patterns, verified through the API or by the operator.",
+        "4": "Meets 3, and bypass is closed: no direct pushes, rules apply to admins, and CI runs on the rebased head (merge queue or equivalent)."
+      },
+      "na_when": null
+    },
+    {
+      "id": "G3",
+      "category": "G",
+      "name": "Rule table pairs every rule with its enforcer",
+      "defeats": "H5",
+      "source": "/correct",
+      "look_for": "AGENTS.md, CLAUDE.md, .cursor/rules, CONTRIBUTING, and any guardrail manifest. discover.py flags markdown tables that mention enforcement.",
+      "anchors": {
+        "0": "No inventory of rules.",
+        "1": "Rules live only as prose in agent instructions or a style guide, with no enforcers named.",
+        "2": "A rule list names enforcers for some rules.",
+        "3": "A rule table or manifest pairs every rule with its enforcer or marks it as a named judgment call, and agent instructions link to it.",
+        "4": "Meets 3, the table is generated from or validated against gate config so it can't drift, and rules whose mistakes can't happen anymore have been deleted."
+      },
+      "na_when": null
+    },
+    {
+      "id": "G4",
+      "category": "G",
+      "name": "Each gate is proven on a real past mistake",
+      "defeats": "H3",
+      "source": "/correct",
+      "look_for": "Rule test files, fixture directories of known-bad code, and CI jobs that run them. Check whether the fixtures match mistakes from this repo's history.",
+      "anchors": {
+        "0": "Gates are never tested.",
+        "1": "Gates were checked by hand when written.",
+        "2": "Some custom rules have tests (RuleTester, semgrep test annotations, ast-grep tests).",
+        "3": "Every custom gate has a canary or rule test drawn from a real past mistake, and those tests run in CI.",
+        "4": "Meets 3, and canaries also run against the full gate command on a schedule, so a config change that silently disables a gate gets caught."
+      },
+      "na_when": null
+    },
+    {
+      "id": "G5",
+      "category": "G",
+      "name": "Legacy violations are ratcheted",
+      "defeats": "H1",
+      "source": "/correct",
+      "look_for": "eslint-suppressions.json, .betterer.results, other baseline files, warning budgets (--max-warnings), and the suppression counts from discover.py. Many inline disables with no baseline mean violations were suppressed rather than ratcheted.",
+      "anchors": {
+        "0": "Legacy violations are mass-suppressed, or rules are turned off because of them.",
+        "1": "Legacy violations are tolerated as warnings.",
+        "2": "A baseline exists (ESLint bulk suppressions, betterer, semgrep baseline, mypy baseline), but CI doesn't enforce it or it can grow.",
+        "3": "CI fails when any gated rule's violation count rises above a checked-in baseline.",
+        "4": "Meets 3, and the baseline tightens automatically when counts fall."
+      },
+      "na_when": "No gated rule has legacy violations."
+    },
+    {
+      "id": "G6",
+      "category": "G",
+      "name": "Exceptions are narrow, explicit, and reviewed",
+      "defeats": "H3",
+      "source": "Dune spec, /correct",
+      "look_for": "Suppression counts from discover.py, including how many carry a reason or an expiry. Lint rules like eslint-comments/require-description. CODEOWNERS coverage of lint and CI config.",
+      "anchors": {
+        "0": "Suppressions are free-form and unreviewed.",
+        "1": "Convention asks for a reason on suppressions.",
+        "2": "A lint requires a reason on suppressions, but there's no expiry or approver.",
+        "3": "Exceptions sit on the offending line with a reason, an expiry, and an approver. A check fails CI on missing fields or expired exceptions, and CODEOWNERS protects gate config.",
+        "4": "Meets 3, and the exception count is tracked and trending down."
+      },
+      "na_when": null
+    },
+    {
+      "id": "G7",
+      "category": "G",
+      "name": "Gates are fast enough for agent loops",
+      "defeats": "H3",
+      "source": "added",
+      "look_for": "Time the gate command if it's safe to run, or read recent CI job durations. These thresholds are starting points; adjust them per engagement.",
+      "anchors": {
+        "0": "Gates run only in CI and take over 30 minutes.",
+        "1": "Gates can run locally but take over 15 minutes.",
+        "2": "The full gate command runs locally in 15 minutes or less.",
+        "3": "The full gate command runs in 5 minutes or less, or an incremental mode on changed files runs in under a minute.",
+        "4": "Meets 3, and CI tracks gate duration against a budget."
+      },
+      "na_when": null
+    },
+    {
+      "id": "F1",
+      "category": "F",
+      "name": "Agent instructions hold judgment calls, not enforced rules",
+      "defeats": "H5",
+      "source": "/correct, encode-lessons-in-structure",
+      "look_for": "The agent_instructions section of discover.py (line counts and imperative rule counts). For a sample of 'never' and 'always' lines, check whether a gate enforces each one.",
+      "anchors": {
+        "0": "No agent instruction file.",
+        "1": "The instruction file is mostly rules that nothing enforces.",
+        "2": "Enforced and unenforced rules are mixed without saying which is which.",
+        "3": "Instructions hold judgment calls and the rule table. Rules that gates already enforce aren't restated as prose.",
+        "4": "Meets 3, and git history shows prose rules being deleted as gates replace them."
+      },
+      "na_when": null
+    },
+    {
+      "id": "F2",
+      "category": "F",
+      "name": "Escapes are mined and promoted on a schedule",
+      "defeats": "H1",
+      "source": "talk (review comments as a smell), /correct",
+      "look_for": "Scheduled workflows or automations that read review comments or reverts, a findings queue or doc, and commits that add a lint rule citing a past PR. Cross-check against this audit's own escape list.",
+      "anchors": {
+        "0": "Repeated review comments and reverts aren't tracked.",
+        "1": "The team informally turns some repeated review comments into lint rules.",
+        "2": "A process (/correct, retros) promotes repeated mistakes into gates, but it runs ad hoc.",
+        "3": "A scheduled job mines review comments, AI review findings, reverts, and agent transcripts for repeated mistake classes and queues them for promotion.",
+        "4": "Meets 3, promoted gates land with canaries, and the escape count is tracked across runs."
+      },
+      "na_when": null
+    },
+    {
+      "id": "F3",
+      "category": "F",
+      "name": "AI review backs up the gates",
+      "defeats": "H5",
+      "source": "talk (Bugbot as a soft layer)",
+      "look_for": "BUGBOT.md or equivalent config, bot authors in review comments, and whether bot findings repeat across PRs.",
+      "anchors": {
+        "0": "No AI code review.",
+        "1": "AI review is used ad hoc.",
+        "2": "AI review (Bugbot or similar) runs on every PR with repo-specific rules such as .cursor/BUGBOT.md.",
+        "3": "AI review runs on every PR with repo rules, and its repeated findings get promoted into gates instead of staying with the reviewer.",
+        "4": "Meets 3, and high-risk changes get review from more than one model."
+      },
+      "na_when": null
+    }
+  ]
+}

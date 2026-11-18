@@ -1,0 +1,17 @@
+{
+  "name": "beeson-agentic-engineering",
+  "displayName": "Beeson Agentic Engineering",
+  "version": "1.0.0",
+  "description": "Playbooks, engineering principles, feature maps, and verification rigs for building and maintaining software with coding agents.",
+  "author": {
+    "name": "Alex Beeson"
+  },
+  "keywords": [
+    "skills",
+    "playbooks",
+    "verification",
+    "feature-map",
+    "agentic-engineering"
+  ],
+  "category": "Developer tools"
+}

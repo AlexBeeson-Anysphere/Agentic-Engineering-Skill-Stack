@@ -1,0 +1,16 @@
+{
+  "name": "beeson-agentic-engineering",
+  "owner": {
+    "name": "Alex Beeson"
+  },
+  "metadata": {
+    "description": "Playbooks, engineering principles, feature maps, and verification rigs for building and maintaining software with coding agents."
+  },
+  "plugins": [
+    {
+      "name": "beeson-agentic-engineering",
+      "source": "./plugins/beeson-agentic-engineering",
+      "description": "Playbooks, engineering principles, feature maps, and verification rigs for building and maintaining software with coding agents."
+    }
+  ]
+}
