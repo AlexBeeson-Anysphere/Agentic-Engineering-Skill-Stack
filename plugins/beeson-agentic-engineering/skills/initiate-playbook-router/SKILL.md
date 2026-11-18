@@ -5,7 +5,7 @@ description: Routes a substantial work request to one fixed playbook and the sma
 
 # Initiate Playbook Router
 
-Adapted from Lauren Tan's `poteto-mode` router in pstack. See [ATTRIBUTION.md](ATTRIBUTION.md) for source, licence, and what was changed in the adaptation. The playbooks live in [playbooks/](playbooks/INDEX.md). The engineering-principle catalog lives in [principles/INDEX.md](principles/INDEX.md).
+Adapted from Lauren Tan's `poteto-mode` router in pstack. See [ATTRIBUTION.md](ATTRIBUTION.md) for source, licence, and what was changed in the adaptation. The playbooks live in [playbooks/](playbooks/INDEX.md). The engineering principles live in the sibling [engineering-principles](../engineering-principles/SKILL.md) skill.
 
 One claim runs the whole system: delivery rate is capped by how much you can verify, not how much you can generate. Vagueness is only affordable when the agent can independently establish where it is, what it changed, and whether it worked. This router is the machinery that makes a half-formed ticket safe to hand over: the vague input hits a fixed procedure instead of an open-ended planning session.
 
@@ -88,10 +88,10 @@ When two playbooks could claim the request, route by what must produce evidence 
 
 The playbook defines the task lifecycle. Principles constrain decisions inside that lifecycle. Principle selection is not a second workflow and does not create a competing plan.
 
-1. Open [principles/INDEX.md](principles/INDEX.md).
+1. Open [engineering-principles](../engineering-principles/SKILL.md) and run its selection contract with the matched playbook as input.
 2. Start with the matched playbook's defaults, then add only principles whose conditional triggers are present in the request or observed evidence.
 3. Select the smallest set that changes a decision. Do not load the full catalog.
-4. Read every selected principle guideline linked from the catalog in full before the playbook step it constrains. These files are references owned by this router, not independently invokable skills.
+4. Read every selected principle guideline linked from the catalog in full before the playbook step it constrains.
 5. Record the principle contract as `<principle>: <trigger>; affects <playbook step or decision>`.
 6. Re-evaluate the set at phase boundaries and when evidence changes the task's shape. Add or drop a principle visibly with a one-line reason. A changed principle set is not a playbook re-route.
 

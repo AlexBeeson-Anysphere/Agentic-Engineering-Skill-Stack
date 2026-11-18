@@ -4,7 +4,7 @@ This repository is a Cursor plugin and a Claude Code plugin. It packages the ski
 
 Install the plugin once. Then, in the application repository, ask for a skill by name or with its slash command. The plugin does not copy itself into the application. Skills that create project files write those files into the application repo (`agent-map/`, `.cursor/skills/run-verification-rig/`).
 
-There are 34 skills: 11 operational skills (how the work runs, plus the feature map and verification rig) and 23 principles the router pulls in when a ticket needs them. Each principle is also a skill you can open by name.
+There are 15 skills: 11 operational skills (how the work runs, plus the feature map and verification rig), the `engineering-principles` skill that selects from a catalog of 23 principles, and slash commands for the three principles used most often to correct an agent mid-session.
 
 ## Install in Cursor
 
@@ -78,11 +78,11 @@ Start a new session and run `/initiate-playbook-router`. The skill list for the 
 
 Slash commands use the skill `name` from its frontmatter, which matches the directory name. Example: `/establish-feature-map`.
 
-Most skills set `disable-model-invocation: true`. They start when you name them or type the slash command. `initiate-playbook-router` and `improve-skill` can also be selected from the wording of the request.
+Most skills set `disable-model-invocation: true`. They start when you name them or type the slash command. `initiate-playbook-router`, `engineering-principles`, and `improve-skill` can also be selected from the wording of the request.
 
 Shell commands inside the map and rig skills use `$SKILL_DIR`, the directory of the `SKILL.md` the agent already opened, and sibling directories next to it. Those paths resolve inside the installed plugin. They do not require a copy under `~/.cursor/skills/`.
 
-The router keeps a working copy of each principle in [`plugins/beeson-agentic-engineering/skills/initiate-playbook-router/principles`](plugins/beeson-agentic-engineering/skills/initiate-playbook-router/principles) and reads that copy while a playbook is running. Opening `/principle-prove-it-works` loads the matching skill.
+Each principle exists once, in [`plugins/beeson-agentic-engineering/skills/engineering-principles/principles`](plugins/beeson-agentic-engineering/skills/engineering-principles/principles). The router, the `engineering-principles` skill, and the three `/principle-*` commands all read that copy.
 
 ## Catalog
 
@@ -111,33 +111,42 @@ These skills write into the application repository. The feature map is the index
 
 ### Engineering principles
 
-The router selects the smallest set that changes a decision on the current ticket. You can also open one directly when the situation matches.
+One skill owns all 23 principles. It reads the decision in front of the agent, selects the smallest set of principles that changes it, and loads only those guidelines. The router calls it during principle selection, and the agent can pick it on its own for reviews, debugging, and design decisions outside a playbook. Three principles that are often invoked mid-session to correct an agent also have their own slash commands. Each is a pointer to the same guideline file, so there is one copy of every principle.
 
 | Skill | Use |
 | --- | --- |
-| [principle-attack-the-premise](plugins/beeson-agentic-engineering/skills/principle-attack-the-premise/SKILL.md) | When two fixes that share a premise fail the same check, census which actors hold the imbalance and question the premise. |
-| [principle-boundary-discipline](plugins/beeson-agentic-engineering/skills/principle-boundary-discipline/SKILL.md) | Put validation, parsing, and error handling at the edges (CLI, config, network, external APIs). Keep business logic in pure functions. |
-| [principle-build-the-lever](plugins/beeson-agentic-engineering/skills/principle-build-the-lever/SKILL.md) | For a non-trivial edit, migration, analysis, or check, build the script or skill that does the job or proves it, so a reviewer can rerun it. |
-| [principle-encode-lessons-in-structure](plugins/beeson-agentic-engineering/skills/principle-encode-lessons-in-structure/SKILL.md) | When the same correction shows up a second time, encode it as a lint, a check, a metadata flag, or a script. |
-| [principle-exhaust-the-design-space](plugins/beeson-agentic-engineering/skills/principle-exhaust-the-design-space/SKILL.md) | For a new interaction or architecture with no local precedent, build two or three prototypes and compare them before committing. |
-| [principle-experience-first](plugins/beeson-agentic-engineering/skills/principle-experience-first/SKILL.md) | When product scope and polish trade off, ship fewer finished behaviors. |
-| [principle-fix-root-causes](plugins/beeson-agentic-engineering/skills/principle-fix-root-causes/SKILL.md) | Reproduce a failure, ask why until the cause is in hand, and fix it there. |
-| [principle-foundational-thinking](plugins/beeson-agentic-engineering/skills/principle-foundational-thinking/SKILL.md) | Choose the data structures and the scaffold before writing the logic that depends on them. |
-| [principle-guard-the-context-window](plugins/beeson-agentic-engineering/skills/principle-guard-the-context-window/SKILL.md) | When files, logs, or fan-out would fill the main thread, send the bulk to subagents and keep the summary. |
-| [principle-laziness-protocol](plugins/beeson-agentic-engineering/skills/principle-laziness-protocol/SKILL.md) | Prefer deletion and the smallest change that solves the problem. |
-| [principle-make-operations-idempotent](plugins/beeson-agentic-engineering/skills/principle-make-operations-idempotent/SKILL.md) | Design commands, lifecycle steps, and processing loops so a retry after a crash reaches the same end state. |
-| [principle-migrate-callers-then-delete-legacy-apis](plugins/beeson-agentic-engineering/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md) | When replacing an internal API, migrate the callers and delete the old API in the same change. |
-| [principle-minimize-reader-load](plugins/beeson-agentic-engineering/skills/principle-minimize-reader-load/SKILL.md) | When code is hard to trace, collapse pass-through layers and shrink the state a reader has to hold. |
-| [principle-model-the-domain](plugins/beeson-agentic-engineering/skills/principle-model-the-domain/SKILL.md) | When logic is stateful or a shape is repeated across files, encode the domain in a structure so invalid combinations cannot be represented. |
-| [principle-never-block-on-the-human](plugins/beeson-agentic-engineering/skills/principle-never-block-on-the-human/SKILL.md) | Do reversible work and show the result. Ask before irreversible actions. |
-| [principle-outcome-oriented-execution](plugins/beeson-agentic-engineering/skills/principle-outcome-oriented-execution/SKILL.md) | During a planned rewrite, converge on the target design. Skip throwaway compatibility steps between phases. |
-| [principle-prove-it-works](plugins/beeson-agentic-engineering/skills/principle-prove-it-works/SKILL.md) | Before calling work done, exercise the real artifact: run the feature, read the stored value, or inspect the diff. |
-| [principle-redesign-from-first-principles](plugins/beeson-agentic-engineering/skills/principle-redesign-from-first-principles/SKILL.md) | Fold a new requirement into the design as if it had been a foundational assumption. |
-| [principle-separate-before-serializing-shared-state](plugins/beeson-agentic-engineering/skills/principle-separate-before-serializing-shared-state/SKILL.md) | When concurrent actors might write the same file, branch, or key, give them separate state. Share one writer only when that is a real invariant. |
-| [principle-sequence-verifiable-units](plugins/beeson-agentic-engineering/skills/principle-sequence-verifiable-units/SKILL.md) | Split a sweep, migration, or stack of changes so each unit ends in a check, and check it before the next. |
-| [principle-subtract-before-you-add](plugins/beeson-agentic-engineering/skills/principle-subtract-before-you-add/SKILL.md) | Delete dead code and redundant checks before building the new design on top. |
-| [principle-test-behavior-not-implementation](plugins/beeson-agentic-engineering/skills/principle-test-behavior-not-implementation/SKILL.md) | Call the code the way its users do and assert the result they observe. |
-| [principle-type-system-discipline](plugins/beeson-agentic-engineering/skills/principle-type-system-discipline/SKILL.md) | Make illegal states unrepresentable, parse external data at the boundary, and derive types from the authoritative schema. |
+| [engineering-principles](plugins/beeson-agentic-engineering/skills/engineering-principles/SKILL.md) | Selects and loads the principles that apply to the current decision. Name one to apply it directly: `/engineering-principles boundary-discipline`. |
+| [principle-prove-it-works](plugins/beeson-agentic-engineering/skills/principle-prove-it-works/SKILL.md) | Before calling work done, exercise the real artifact and show the evidence. |
+| [principle-fix-root-causes](plugins/beeson-agentic-engineering/skills/principle-fix-root-causes/SKILL.md) | Stop patching the symptom: reproduce, find the cause, fix it there. |
+| [principle-laziness-protocol](plugins/beeson-agentic-engineering/skills/principle-laziness-protocol/SKILL.md) | Shrink the diff: prefer deletion and the smallest change that solves the problem. |
+
+The guidelines in the catalog:
+
+| Principle | Use |
+| --- | --- |
+| [principle-attack-the-premise](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-attack-the-premise.md) | When two fixes that share a premise fail the same check, census which actors hold the imbalance and question the premise. |
+| [principle-boundary-discipline](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-boundary-discipline.md) | Put validation, parsing, and error handling at the edges (CLI, config, network, external APIs). Keep business logic in pure functions. |
+| [principle-build-the-lever](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-build-the-lever.md) | For a non-trivial edit, migration, analysis, or check, build the script or skill that does the job or proves it, so a reviewer can rerun it. |
+| [principle-encode-lessons-in-structure](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-encode-lessons-in-structure.md) | When the same correction shows up a second time, encode it as a lint, a check, a metadata flag, or a script. |
+| [principle-exhaust-the-design-space](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-exhaust-the-design-space.md) | For a new interaction or architecture with no local precedent, build two or three prototypes and compare them before committing. |
+| [principle-experience-first](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-experience-first.md) | When product scope and polish trade off, ship fewer finished behaviors. |
+| [principle-fix-root-causes](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-fix-root-causes.md) | Reproduce a failure, ask why until the cause is in hand, and fix it there. |
+| [principle-foundational-thinking](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-foundational-thinking.md) | Choose the data structures and the scaffold before writing the logic that depends on them. |
+| [principle-guard-the-context-window](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-guard-the-context-window.md) | When files, logs, or fan-out would fill the main thread, send the bulk to subagents and keep the summary. |
+| [principle-laziness-protocol](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-laziness-protocol.md) | Prefer deletion and the smallest change that solves the problem. |
+| [principle-make-operations-idempotent](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-make-operations-idempotent.md) | Design commands, lifecycle steps, and processing loops so a retry after a crash reaches the same end state. |
+| [principle-migrate-callers-then-delete-legacy-apis](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-migrate-callers-then-delete-legacy-apis.md) | When replacing an internal API, migrate the callers and delete the old API in the same change. |
+| [principle-minimize-reader-load](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-minimize-reader-load.md) | When code is hard to trace, collapse pass-through layers and shrink the state a reader has to hold. |
+| [principle-model-the-domain](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-model-the-domain.md) | When logic is stateful or a shape is repeated across files, encode the domain in a structure so invalid combinations cannot be represented. |
+| [principle-never-block-on-the-human](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-never-block-on-the-human.md) | Do reversible work and show the result. Ask before irreversible actions. |
+| [principle-outcome-oriented-execution](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-outcome-oriented-execution.md) | During a planned rewrite, converge on the target design. Skip throwaway compatibility steps between phases. |
+| [principle-prove-it-works](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-prove-it-works.md) | Before calling work done, exercise the real artifact: run the feature, read the stored value, or inspect the diff. |
+| [principle-redesign-from-first-principles](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-redesign-from-first-principles.md) | Fold a new requirement into the design as if it had been a foundational assumption. |
+| [principle-separate-before-serializing-shared-state](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-separate-before-serializing-shared-state.md) | When concurrent actors might write the same file, branch, or key, give them separate state. Share one writer only when that is a real invariant. |
+| [principle-sequence-verifiable-units](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-sequence-verifiable-units.md) | Split a sweep, migration, or stack of changes so each unit ends in a check, and check it before the next. |
+| [principle-subtract-before-you-add](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-subtract-before-you-add.md) | Delete dead code and redundant checks before building the new design on top. |
+| [principle-test-behavior-not-implementation](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-test-behavior-not-implementation.md) | Call the code the way its users do and assert the result they observe. |
+| [principle-type-system-discipline](plugins/beeson-agentic-engineering/skills/engineering-principles/principles/principle-type-system-discipline.md) | Make illegal states unrepresentable, parse external data at the boundary, and derive types from the authoritative schema. |
 
 ## Sample usage
 
@@ -160,9 +169,9 @@ Finance wants credit memos on an order: a staff action in the web UI, an API tha
 
 Ask the agent to take the ticket through `/initiate-playbook-router`. The router sends new behavior to the feature playbook and selects a small set of principles. On this ticket that is typically:
 
-- `/principle-model-the-domain` for memo states (draft, issued, voided) so those states cannot be combined illegally
-- `/principle-boundary-discipline` and `/principle-type-system-discipline` at the API boundary, where the request is parsed into a money type
-- `/principle-prove-it-works`, which means drive the new journey with `.cursor/skills/run-verification-rig/` and keep the evidence
+- Model the Domain for memo states (draft, issued, voided) so those states cannot be combined illegally
+- Boundary Discipline and Type System Discipline at the API boundary, where the request is parsed into a money type
+- Prove It Works, which means drive the new journey with `.cursor/skills/run-verification-rig/` and keep the evidence
 
 The agent implements in slices that can be checked: the domain type, the API, the UI action, the worker job. When the shape of the storage is genuinely unsettled (an order event versus its own table), run `/arena` on that decision and keep one grafted result. Before merge, run `/interrogate` on the diff. Use `/swarm` when the API, the worker, and the admin UI can be checked as separate slices.
 
@@ -170,7 +179,7 @@ Then run `/maintain-feature-map` so the order and billing feature files match th
 
 ### 3. Fix a production bug
 
-Credit-memo emails show the pre-tax total. Ask for `/initiate-playbook-router` and describe the bug. The router sends it to the bug-fix playbook: reproduce the email on the rig, find the cause, fix that cause, and show the same drive failing before the fix and passing after it. `/principle-fix-root-causes` is the principle that keeps the change on the cause.
+Credit-memo emails show the pre-tax total. Ask for `/initiate-playbook-router` and describe the bug. The router sends it to the bug-fix playbook: reproduce the email on the rig, find the cause, fix that cause, and show the same drive failing before the fix and passing after it. Fix Root Causes is the principle that keeps the change on the cause. If an agent drifts into patching the symptom outside a playbook, `/principle-fix-root-causes` pulls it back.
 
 ### 4. Answer a slowness with a measurement
 
@@ -204,7 +213,7 @@ scripts/validate_plugin.py               checks manifests, skill names, and this
 
 Cursor and Claude Code both discover skills as `skills/<name>/SKILL.md` under the plugin root. A new skill is a new directory there whose frontmatter `name` matches the directory name. Add a row to the catalog in this README. `python3 scripts/validate_plugin.py` fails when a skill is missing from the catalog, or when a catalog link has no skill.
 
-The engineering principles are flat skill directories, siblings of the router. Links between principles stay `../principle-<name>/SKILL.md`.
+A new principle is a guideline file in `skills/engineering-principles/principles/` plus an entry in that skill's catalog with its trigger. It is not a new skill directory. Links between guidelines stay `principle-<name>.md`. Add a `/principle-<name>` slash command only when people invoke that principle directly often enough to justify it. Its `SKILL.md` must point at the guideline file rather than copy it.
 
 ## Check the package
 

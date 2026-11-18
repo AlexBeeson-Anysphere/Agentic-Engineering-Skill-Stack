@@ -21,8 +21,8 @@ PLUGIN_REL = Path("plugins") / PLUGIN_NAME
 SKILLS_REL = PLUGIN_REL / "skills"
 NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.S)
-PRINCIPLE_SKILL_LINK_RE = re.compile(r"\]\((\.\./principle-[a-z0-9-]+/SKILL\.md)\)")
-PRINCIPLE_COPY_LINK_RE = re.compile(r"\]\((principle-[a-z0-9-]+\.md)\)")
+PRINCIPLES_REL = SKILLS_REL / "engineering-principles"
+RELATIVE_MD_LINK_RE = re.compile(r"\]\(((?!https?:|#)[^)\s]+\.md)(?:#[^)]*)?\)")
 
 errors: list[str] = []
 
@@ -150,22 +150,31 @@ def main() -> int:
         link = f"{SKILLS_REL.as_posix()}/{parent.name}/SKILL.md"
         if link not in readme_text:
             fail(f"README.md does not link to {link}")
-        for match in PRINCIPLE_SKILL_LINK_RE.finditer(skill_md.read_text()):
-            target = (parent / match.group(1)).resolve()
-            if not target.is_file():
-                fail(f"{rel} links to missing {match.group(1)}")
+        if parent.name.startswith("principle-"):
+            canonical = f"../engineering-principles/principles/{parent.name}.md"
+            if canonical not in skill_md.read_text():
+                fail(f"{rel} must point at {canonical} instead of carrying its own copy")
 
     missing_dirs = [name for name in skill_names if name not in seen]
     for name in missing_dirs:
         fail(f"{SKILLS_REL}/{name} has no SKILL.md")
 
-    principles = ROOT / SKILLS_REL / "initiate-playbook-router" / "principles"
-    if principles.is_dir():
-        for copy in sorted(principles.glob("principle-*.md")):
-            for match in PRINCIPLE_COPY_LINK_RE.finditer(copy.read_text()):
-                target = principles / match.group(1)
-                if not target.is_file():
-                    fail(f"{copy.relative_to(ROOT)} links to missing {match.group(1)}")
+    # Templates link to paths inside the application repo, so only the router,
+    # the principle catalog, and links that target a principle are resolved here.
+    routing_dirs = (skills_dir / "initiate-playbook-router", ROOT / PRINCIPLES_REL)
+    for doc in sorted(skills_dir.rglob("*.md")):
+        in_routing = any(doc.is_relative_to(d) for d in routing_dirs)
+        for match in RELATIVE_MD_LINK_RE.finditer(doc.read_text()):
+            if not in_routing and "principle-" not in match.group(1):
+                continue
+            if not (doc.parent / match.group(1)).resolve().is_file():
+                fail(f"{doc.relative_to(ROOT)} links to missing {match.group(1)}")
+
+    catalog = ROOT / PRINCIPLES_REL / "SKILL.md"
+    catalog_text = catalog.read_text() if catalog.is_file() else ""
+    for guideline in sorted((ROOT / PRINCIPLES_REL / "principles").glob("*.md")):
+        if f"](principles/{guideline.name})" not in catalog_text:
+            fail(f"{PRINCIPLES_REL}/SKILL.md does not list principles/{guideline.name}")
 
     if errors:
         print(f"validate_plugin: {len(errors)} error(s)")
